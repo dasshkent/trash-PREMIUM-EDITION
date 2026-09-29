@@ -1,5 +1,6 @@
 import sys
 import subprocess
+from pathlib import Path
 
 def show_help():
         print('Использование: python catops.py <команда>\n' \
