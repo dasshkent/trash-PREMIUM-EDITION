@@ -1,6 +1,13 @@
 from pathlib import Path
 
 path = Path('.')
+git_path = path/'.git'
+print(git_path.absolute())
+print(path.absolute())
+
+
+if (path/'.git').exists():
+        print('да')
 
 def walk(path):
     files = []
@@ -12,4 +19,4 @@ def walk(path):
             files.extend(walk(i))
     return files
 
-print(walk(path))
+# print(walk(path))

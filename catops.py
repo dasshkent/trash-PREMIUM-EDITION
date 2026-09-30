@@ -52,6 +52,13 @@ def show_last_commit_message():
         print('Last Commit Message: ' + git_commit_message_output.strip())
     else: 
         print('Last Commit Message: ERROR - ' + git_commit_message_error.strip())
+
+def find_projects(path):
+    projects = []
+    for i in path.iterdir():
+        if (i / '.git').exists():
+            projects.append(i)
+    return projects
     
 if len(sys.argv) < 2 or len(sys.argv) > 3:
     show_help()
@@ -103,6 +110,12 @@ elif sys.argv[1] == 'git':
         show_git_status()
         show_git_url()
         show_last_commit_message()
+
+elif sys.argv[1] == 'projects':
+    path = Path('.')
+    projects = find_projects(path)
+    print(projects)
+
 
 else:
     print('Неизвестная команда: ' + sys.argv[1])
