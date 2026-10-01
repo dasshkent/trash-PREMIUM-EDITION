@@ -1,6 +1,7 @@
 import sys
 import subprocess
 from pathlib import Path
+import json
 
 def show_help():
         print('Использование: python catops.py <команда>\n' \
@@ -52,6 +53,11 @@ def show_last_commit_message():
         print('Last Commit Message: ' + git_commit_message_output.strip())
     else: 
         print('Last Commit Message: ERROR - ' + git_commit_message_error.strip())
+
+def load_config():
+    with open('config.json', 'r') as file:
+        config = json.load(file)
+    return config
 
 def find_projects(path):
     projects = []
@@ -112,7 +118,8 @@ elif sys.argv[1] == 'git':
         show_last_commit_message()
 
 elif sys.argv[1] == 'projects':
-    path = Path('.')
+    config = load_config()
+    path = Path(config['projects_folder'])
     projects = find_projects(path)
     print(projects)
 
