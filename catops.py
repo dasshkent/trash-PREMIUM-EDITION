@@ -118,13 +118,25 @@ elif sys.argv[1] == 'git':
         show_last_commit_message()
 
 elif sys.argv[1] == 'projects':
-    config = load_config()
     try:
-        path = Path(config['projects_folder'])
+        config = load_config()
+    except FileNotFoundError:
+        print('🐈 Глупый человек, файл конфигурации не найден')
+        exit()
+    except json.JSONDecodeError:
+        print('🐈 Глупый человек, сделай нормальный файл конфигурации')
+        exit()
+    try:
+        folder = config['projects_folder']
+        if not folder or folder.strip() == '':
+            print('🐈 Глупый человек, папка проектов не указана в конфигурации')
+            exit()
+        else:
+            path = Path(folder)
     except KeyError:
         print('🐈 Глупый человек, папка проектов не указана в конфигурации')
         exit()
-    if not path.exists():
+    if not path.is_dir():
         print('🐈 Глупый человек, папка проектов не существует: ' + str(path))
         exit()
     projects = find_projects(path)
