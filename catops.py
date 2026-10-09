@@ -65,8 +65,8 @@ def find_projects(path):
         if (i / '.git').exists():
             projects.append(i)
     return projects
-    
-if len(sys.argv) < 2 or len(sys.argv) > 3:
+
+if len(sys.argv) < 2:
     show_help()
     exit()
 
@@ -119,10 +119,24 @@ elif sys.argv[1] == 'git':
 
 elif sys.argv[1] == 'projects':
     config = load_config()
-    path = Path(config['projects_folder'])
+    try:
+        path = Path(config['projects_folder'])
+    except KeyError:
+        print('🐈 Глупый человек, папка проектов не указана в конфигурации')
+        exit()
+    if not path.exists():
+        print('🐈 Глупый человек, папка проектов не существует: ' + str(path))
+        exit()
     projects = find_projects(path)
-    print(projects)
+    for project in projects:
+        print(project.name)
 
+elif sys.argv[1] == 'run':
+    code, output, error = run_command(sys.argv[2:])
+    if code == 0:
+        print('Команда выполнена успешно:\n' + output)
+    else:
+        print('Ошибка при выполнении команды:\n' + error)
 
 else:
     print('Неизвестная команда: ' + sys.argv[1])
