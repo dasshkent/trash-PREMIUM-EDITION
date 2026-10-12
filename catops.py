@@ -19,7 +19,8 @@ def show_git_help():
           'branch      показать текущую ветку\n' \
           'status      показать состояние репозитория\n' \
           'url         показать URL удаленного репозитория\n' \
-          'last_commit показать сообщение последнего коммита')
+          'last_commit показать сообщение последнего коммита\n'
+          'log         показать последние 5 коммитов')
 
 def run_command(args):
     result = subprocess.run(args, capture_output=True, text=True)
@@ -33,12 +34,14 @@ def show_git_branch():
         print('Git Branch: ERROR - ' + git_branch_error.strip())
 
 def show_git_status():
-    git_status_code, git_status_output, git_status_error = run_command(['git', 'status'])
+    git_status_code, git_status_output, git_status_error = run_command(['git', 'status', '--short'])
     if git_status_code == 0: 
         if git_status_output.strip() == '': 
             print('Git status: clean')
         else: 
             print('Git status: dirty')
+            print('Changed files:')
+            print(git_status_output.strip())
     else: 
         print('Git Status: ERROR - ' + git_status_error.strip())
 
@@ -60,6 +63,13 @@ def load_config():
     with open('config.json', 'r') as file:
         config = json.load(file)
     return config
+
+def show_git_log():
+    git_log_code, git_log_output, git_log_error = run_command(['git', 'log', '-5', '--oneline'])
+    if git_log_code == 0: 
+        print('Git Log (last 5 commits):\n' + git_log_output.strip())
+    else: 
+        print('Git Log: ERROR - ' + git_log_error.strip())
 
 def find_projects(path):
     projects = []
@@ -109,6 +119,8 @@ elif sys.argv[1] == 'git':
             show_git_url()
         elif sys.argv[2] == 'last_commit':
             show_last_commit_message()
+        elif sys.argv[2] == 'log':
+            show_git_log()
         else:
             print('Неизвестная команда: ' + sys.argv[2])
             show_git_help()
