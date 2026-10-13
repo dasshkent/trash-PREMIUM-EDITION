@@ -20,7 +20,8 @@ def show_git_help():
           'status      показать состояние репозитория\n' \
           'url         показать URL удаленного репозитория\n' \
           'last_commit показать сообщение последнего коммита\n'
-          'log         показать последние 5 коммитов')
+          'log         показать последние 5 коммитов\n' \
+          'branches    показать все ветки репозитория\n')
 
 def run_command(args):
     result = subprocess.run(args, capture_output=True, text=True)
@@ -70,6 +71,13 @@ def show_git_log():
         print('Git Log (last 5 commits):\n' + git_log_output.strip())
     else: 
         print('Git Log: ERROR - ' + git_log_error.strip())
+
+def show_git_branches():
+    git_branches_code, git_branches_output, git_branches_error = run_command(['git', 'branch'])
+    if git_branches_code == 0: 
+        print('Git Branches:\n' + git_branches_output.strip())
+    else: 
+        print('Git Branches: ERROR - ' + git_branches_error.strip())
 
 def find_projects(path):
     projects = []
@@ -121,6 +129,8 @@ elif sys.argv[1] == 'git':
             show_last_commit_message()
         elif sys.argv[2] == 'log':
             show_git_log()
+        elif sys.argv[2] == 'branches':
+            show_git_branches()
         else:
             print('Неизвестная команда: ' + sys.argv[2])
             show_git_help()
