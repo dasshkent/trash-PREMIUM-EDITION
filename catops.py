@@ -21,7 +21,8 @@ def show_git_help():
           'url         показать URL удаленного репозитория\n' \
           'last_commit показать сообщение последнего коммита\n'
           'log         показать последние 5 коммитов\n' \
-          'branches    показать все ветки репозитория\n')
+          'branches    показать все ветки репозитория\n' \
+          'diff        показать изменения в рабочем каталоге\n')
 
 def run_command(args):
     result = subprocess.run(args, capture_output=True, text=True)
@@ -71,6 +72,16 @@ def show_git_log():
         print('Git Log (last 5 commits):\n' + git_log_output.strip())
     else: 
         print('Git Log: ERROR - ' + git_log_error.strip())
+
+def show_git_diff():
+    git_diff_code, git_diff_output, git_diff_error = run_command(['git', 'diff'])
+    if git_diff_code == 0: 
+        if git_diff_output.strip() == '': 
+            print('Git Diff: No unstaged changes')
+        else: 
+            print('Git Diff:\n' + git_diff_output.strip())
+    else: 
+        print('Git Diff: ERROR - ' + git_diff_error.strip())
 
 def show_git_branches():
     git_branches_code, git_branches_output, git_branches_error = run_command(['git', 'branch'])
@@ -131,6 +142,8 @@ elif sys.argv[1] == 'git':
             show_git_log()
         elif sys.argv[2] == 'branches':
             show_git_branches()
+        elif sys.argv[2] == 'diff':
+            show_git_diff()
         else:
             print('Неизвестная команда: ' + sys.argv[2])
             show_git_help()
