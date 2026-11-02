@@ -22,7 +22,11 @@ def show_git_help():
           'last_commit показать сообщение последнего коммита\n'
           'log         показать последние 5 коммитов\n' \
           'branches    показать все ветки репозитория\n' \
-          'diff        показать изменения в рабочем каталоге\n')
+          'diff        показать изменения в рабочем каталоге\n' \
+          'staged      показать изменения, подготовленные к коммиту \n' \
+          'diff_stat   показать краткую статистику изменений\n' \
+          'remotes     показать удалённые репозитории\n' \
+          'show        показать информацию о последнем коммите')
 
 def run_command(args):
     result = subprocess.run(args, capture_output=True, text=True)
@@ -82,6 +86,51 @@ def show_git_diff():
             print('Git Diff:\n' + git_diff_output.strip())
     else: 
         print('Git Diff: ERROR - ' + git_diff_error.strip())
+
+def show_git_staged():
+    code, output, error = run_command(['git', 'diff', '--cached'])
+
+    if code == 0:
+        if output.strip() == '':
+            print('Git staged: No staged changes')
+        else:
+            print('Git staged changes:\n' + output.strip())
+    else:
+        print('Git staged: ERROR - ' + error.strip())
+
+
+def show_git_diff_stat():
+    code, output, error = run_command(['git', 'diff', '--stat'])
+
+    if code == 0:
+        if output.strip() == '':
+            print('Git diff stat: No unstaged changes')
+        else:
+            print('Git diff statistics:\n' + output.strip())
+    else:
+        print('Git diff stat: ERROR - ' + error.strip())
+
+
+def show_git_remotes():
+    code, output, error = run_command(['git', 'remote', '-v'])
+
+    if code == 0:
+        if output.strip() == '':
+            print('Git remotes: No remotes configured')
+        else:
+            print('Git remotes:\n' + output.strip())
+    else:
+        print('Git remotes: ERROR - ' + error.strip())
+
+def show_git_show():
+    code, output, error = run_command(
+        ['git', 'show', '-1', '--stat', '--oneline']
+    )
+
+    if code == 0:
+        print('Last commit details:\n' + output.strip())
+    else:
+        print('Git show: ERROR - ' + error.strip())
 
 def show_git_branches():
     git_branches_code, git_branches_output, git_branches_error = run_command(['git', 'branch'])
@@ -143,7 +192,16 @@ elif sys.argv[1] == 'git':
         elif sys.argv[2] == 'branches':
             show_git_branches()
         elif sys.argv[2] == 'diff':
-            show_git_diff()
+            show_git_diff()      
+        elif sys.argv[2] == 'staged':
+            show_git_staged()
+        elif sys.argv[2] == 'diff_stat':
+            show_git_diff_stat()
+        elif sys.argv[2] == 'remotes':
+            show_git_remotes()
+        elif sys.argv[2] == 'show':
+            show_git_show()
+
         else:
             print('Неизвестная команда: ' + sys.argv[2])
             show_git_help()
