@@ -26,7 +26,11 @@ def show_git_help():
           'staged      показать изменения, подготовленные к коммиту \n' \
           'diff_stat   показать краткую статистику изменений\n' \
           'remotes     показать удалённые репозитории\n' \
-          'show        показать информацию о последнем коммите')
+          'show        показать информацию о последнем коммите\n' \
+          'hash        показать хеш текущего коммита\n' \
+          'tags        показать Git-теги\n' \
+          'contributors показать авторов коммитов\n' \
+          'tracked     показать отслеживаемые файлы\n')
 
 def run_command(args):
     result = subprocess.run(args, capture_output=True, text=True)
@@ -139,6 +143,56 @@ def show_git_branches():
     else: 
         print('Git Branches: ERROR - ' + git_branches_error.strip())
 
+def show_git_hash():
+    code, output, error = run_command(
+        ['git', 'rev-parse', '--short', 'HEAD']
+    )
+
+    if code == 0:
+        print('Current commit hash: ' + output.strip())
+    else:
+        print('Git hash: ERROR - ' + error.strip())
+
+def show_git_tags():
+    code, output, error = run_command(
+        ['git', 'tag', '--list']
+    )
+
+    if code == 0:
+        if output.strip():
+            print('Git tags:\n' + output.strip())
+        else:
+            print('Git tags: No tags found')
+    else:
+        print('Git tags: ERROR - ' + error.strip())
+
+def show_git_contributors():
+    code, output, error = run_command(
+        ['git', 'shortlog', '-sn', '--all']
+    )
+
+    if code == 0:
+        if output.strip():
+            print('Git contributors:\n' + output.strip())
+        else:
+            print('Git contributors: No contributors found')
+    else:
+        print('Git contributors: ERROR - ' + error.strip())
+
+def show_git_tracked():
+    code, output, error = run_command(
+        ['git', 'ls-files']
+    )
+
+    if code == 0:
+        if output.strip():
+            print('Git tracked files:\n' + output.strip())
+        else:
+            print('Git tracked files: No tracked files')
+    else:
+        print('Git tracked files: ERROR - ' + error.strip())
+
+
 def find_projects(path):
     projects = []
     for i in path.iterdir():
@@ -201,7 +255,14 @@ elif sys.argv[1] == 'git':
             show_git_remotes()
         elif sys.argv[2] == 'show':
             show_git_show()
-
+        elif sys.argv[2] == 'hash':
+            show_git_hash()
+        elif sys.argv[2] == 'tags':
+            show_git_tags()
+        elif sys.argv[2] == 'contributors':
+            show_git_contributors()
+        elif sys.argv[2] == 'tracked':
+            show_git_tracked()
         else:
             print('Неизвестная команда: ' + sys.argv[2])
             show_git_help()
