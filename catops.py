@@ -11,7 +11,8 @@ def show_help():
         'git         показать информацию о git-репозитории\n' \
         'Для получения справки по команде git используйте: git help\n' \
         'projects    показать список проектов в папке, указанной в конфигурации\n' \
-        'run         выполнить команду в командной строке')
+        'run         выполнить команду в командной строке\n' \
+        'projects status  состояние всех Git-проектов')
 
 def show_git_help():
     print('Использование: python catops.py git <подкоманда>\n' \
@@ -32,8 +33,13 @@ def show_git_help():
           'contributors показать авторов коммитов\n' \
           'tracked     показать отслеживаемые файлы\n')
 
-def run_command(args):
-    result = subprocess.run(args, capture_output=True, text=True)
+def run_command(args, cwd=None):
+    result = subprocess.run(
+        args,
+        capture_output=True,
+        text=True,
+        cwd=cwd
+    )
     return result.returncode, result.stdout, result.stderr
 
 def show_git_branch():
@@ -102,7 +108,6 @@ def show_git_staged():
     else:
         print('Git staged: ERROR - ' + error.strip())
 
-
 def show_git_diff_stat():
     code, output, error = run_command(['git', 'diff', '--stat'])
 
@@ -113,7 +118,6 @@ def show_git_diff_stat():
             print('Git diff statistics:\n' + output.strip())
     else:
         print('Git diff stat: ERROR - ' + error.strip())
-
 
 def show_git_remotes():
     code, output, error = run_command(['git', 'remote', '-v'])
@@ -192,6 +196,75 @@ def show_git_tracked():
     else:
         print('Git tracked files: ERROR - ' + error.strip())
 
+def search_git_commits(query):
+    code, output, error = run_command(
+        ['git', 'log', '--all', '--oneline', '--grep=' + query, '-i']
+    )
+
+    if code == 0:
+        if output.strip():
+            print('Matching commits:\n' + output.strip())
+        else:
+            print('No commits found matching: ' + query)
+    else:
+        print('Git commit search: ERROR - ' + error.strip())
+
+def show_file_history(filename):
+    code, output, error = run_command(
+        ['git', 'log', '--follow', '--oneline', '--', filename]
+    )
+
+    if code == 0:
+        if output.strip():
+            print('File history: ' + filename + '\n' + output.strip())
+        else:
+            print('No history found for: ' + filename)
+    else:
+        print('File history: ERROR - ' + error.strip())
+
+def show_all_projects_status():
+    try:
+        config = load_config()
+        folder = config['projects_folder']
+
+        if not folder or not folder.strip():
+            print('Projects folder is not configured')
+            return
+
+        path = Path(folder)
+
+        if not path.is_dir():
+            print('Projects folder does not exist: ' + str(path))
+            return
+
+        projects = find_projects(path)
+
+        if not projects:
+            print('No Git projects found')
+            return
+
+        for project in projects:
+            code, output, error = run_command(
+                ['git', 'status', '--short'],
+                cwd=project
+            )
+
+            print('\nProject: ' + project.name)
+
+            if code != 0:
+                print('Git ERROR: ' + error.strip())
+            elif output.strip():
+                print('Status: dirty')
+                print(output.strip())
+            else:
+                print('Status: clean')
+
+    except FileNotFoundError:
+        print('Configuration file not found')
+    except json.JSONDecodeError:
+        print('Invalid configuration file')
+    except KeyError:
+        print('projects_folder is missing in config.json')
 
 def find_projects(path):
     projects = []
@@ -199,6 +272,27 @@ def find_projects(path):
         if (i / '.git').exists():
             projects.append(i)
     return projects
+
+def search_project_files(query):
+    ignored = {'.git', '.venv', 'venv', '__pycache__', 'node_modules'}
+    found = []
+
+    for path in Path('.').rglob('*'):
+        if not path.is_file():
+            continue
+
+        if any(part in ignored for part in path.parts):
+            continue
+
+        if query.lower() in path.name.lower():
+            found.append(path)
+
+    if found:
+        print('Found files:')
+        for file in found:
+            print(file)
+    else:
+        print('No files found matching: ' + query)
 
 if len(sys.argv) < 2:
     show_help()
@@ -229,7 +323,7 @@ if sys.argv[1] == 'status':
         exit()
 
 elif sys.argv[1] == 'git':
-    if len(sys.argv) == 3:
+    if len(sys.argv) >= 3:
         if sys.argv[2] == 'help':
             show_git_help()
             exit()
@@ -264,16 +358,25 @@ elif sys.argv[1] == 'git':
         elif sys.argv[2] == 'tracked':
             show_git_tracked()
         else:
-            print('Неизвестная команда: ' + sys.argv[2])
-            show_git_help()
-            exit()
+            show_git_branch()
+            show_git_status()
+            show_git_url()
+            show_last_commit_message()
+    elif sys.argv[2] == 'search_commit' and len(sys.argv) >= 4:
+        search_git_commits(' '.join(sys.argv[3:]))
+    elif sys.argv[2] == 'file_history' and len(sys.argv) >= 4:
+        show_file_history(' '.join(sys.argv[3:]))
+    elif sys.argv[2] == 'search_files' and len(sys.argv) >= 4:
+        search_project_files(' '.join(sys.argv[3:]))
     else:
-        show_git_branch()
-        show_git_status()
-        show_git_url()
-        show_last_commit_message()
+        print('Неизвестная команда: ' + sys.argv[2])
+        show_git_help()
+        exit()
 
 elif sys.argv[1] == 'projects':
+    if len(sys.argv) == 3 and sys.argv[2] == 'status':
+        show_all_projects_status()
+        exit()
     try:
         config = load_config()
     except FileNotFoundError:
