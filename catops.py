@@ -294,6 +294,121 @@ def search_project_files(query):
     else:
         print('No files found matching: ' + query)
 
+def show_projects_count():
+    path = get_projects_directory()
+    if path is None:
+        return
+
+    projects = find_projects(path)
+    print('Projects found: ' + str(len(projects)))
+
+def search_projects(query):
+    path = get_projects_directory()
+    if path is None:
+        return
+    projects = find_projects(path)
+    matches = [
+        project for project in projects
+        if query.lower() in project.name.lower()
+    ]
+    if matches:
+        print('Matching projects:')
+        for project in matches:
+            print(project.name)
+    else:
+        print('No projects found matching: ' + query)
+
+def show_project_info(name):
+    path = get_projects_directory()
+    if path is None:
+        return
+
+    projects = find_projects(path)
+
+    project = next(
+        (p for p in projects if p.name.lower() == name.lower()),
+        None
+    )
+
+    if project is None:
+        print('Project not found: ' + name)
+        return
+
+    print('Project: ' + project.name)
+    print('Path: ' + str(project.resolve()))
+
+    code, output, error = run_command(
+        ['git', 'branch', '--show-current'],
+        cwd=project
+    )
+
+    if code == 0:
+        print('Branch: ' + output.strip())
+    else:
+        print('Branch: ERROR - ' + error.strip())
+
+    code, output, error = run_command(
+        ['git', 'status', '--short'],
+        cwd=project
+    )
+
+    if code == 0:
+        print('Git status: ' + ('dirty' if output.strip() else 'clean'))
+    else:
+        print('Git status: ERROR - ' + error.strip())
+
+    code, output, error = run_command(
+        ['git', 'log', '-1', '--oneline'],
+        cwd=project
+    )
+
+    if code == 0:
+        print('Last commit: ' + (output.strip() or 'No commits'))
+    else:
+        print('Last commit: ERROR - ' + error.strip())
+
+def show_projects_paths():
+    path = get_projects_directory()
+    if path is None:
+        return
+
+    projects = find_projects(path)
+
+    if not projects:
+        print('No projects found')
+        return
+
+    print('Project paths:')
+
+    for project in projects:
+        print(project.resolve())
+
+def get_projects_directory():
+    try:
+        config = load_config()
+    except FileNotFoundError:
+        print('Configuration file not found')
+        return None
+    except json.JSONDecodeError:
+        print('Invalid configuration file')
+        return None
+
+    folder = config.get('projects_folder')
+
+    if not isinstance(folder, str) or not folder.strip():
+        print('Projects folder is not configured')
+        return None
+
+    path = Path(folder).expanduser()
+
+    if not path.is_dir():
+        print('Projects folder does not exist: ' + str(path))
+        return None
+
+    return path
+
+
+
 if len(sys.argv) < 2:
     show_help()
     exit()
@@ -357,6 +472,7 @@ elif sys.argv[1] == 'git':
             show_git_contributors()
         elif sys.argv[2] == 'tracked':
             show_git_tracked()
+        
         else:
             show_git_branch()
             show_git_status()
@@ -374,6 +490,26 @@ elif sys.argv[1] == 'git':
         exit()
 
 elif sys.argv[1] == 'projects':
+    if len(sys.argv) >= 3:
+        command = sys.argv[2]
+
+        if command == 'count' and len(sys.argv) == 3:
+            show_projects_count()
+
+        elif command == 'search' and len(sys.argv) >= 4:
+            search_projects(' '.join(sys.argv[3:]))
+
+        elif command == 'info' and len(sys.argv) == 4:
+            show_project_info(sys.argv[3])
+
+        elif command == 'paths' and len(sys.argv) == 3:
+            show_projects_paths()
+
+        else:
+            print('Unknown projects command: ' + command)
+            show_help()
+
+        exit()
     if len(sys.argv) == 3 and sys.argv[2] == 'status':
         show_all_projects_status()
         exit()
