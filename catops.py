@@ -12,26 +12,32 @@ def show_help():
         'Для получения справки по команде git используйте: git help\n' \
         'projects    показать список проектов в папке, указанной в конфигурации\n' \
         'run         выполнить команду в командной строке\n' \
-        'projects status  состояние всех Git-проектов')
+        'projects status  состояние всех Git-проектов' \
+        'projects create   создать новый проект\n' \
+        'projects readme   создать README.md\n' \
+        'projects check    проверить структуру проекта\n')
 
 def show_git_help():
     print('Использование: python catops.py git <подкоманда>\n' \
-          'Подкоманды: \n' \
-          'branch      показать текущую ветку\n' \
-          'status      показать состояние репозитория\n' \
-          'url         показать URL удаленного репозитория\n' \
-          'last_commit показать сообщение последнего коммита\n'
-          'log         показать последние 5 коммитов\n' \
-          'branches    показать все ветки репозитория\n' \
-          'diff        показать изменения в рабочем каталоге\n' \
-          'staged      показать изменения, подготовленные к коммиту \n' \
-          'diff_stat   показать краткую статистику изменений\n' \
-          'remotes     показать удалённые репозитории\n' \
-          'show        показать информацию о последнем коммите\n' \
-          'hash        показать хеш текущего коммита\n' \
-          'tags        показать Git-теги\n' \
-          'contributors показать авторов коммитов\n' \
-          'tracked     показать отслеживаемые файлы\n')
+        'Подкоманды: \n' \
+        'branch      показать текущую ветку\n' \
+        'status      показать состояние репозитория\n' \
+        'url         показать URL удаленного репозитория\n' \
+        'last_commit показать сообщение последнего коммита\n'
+        'log         показать последние 5 коммитов\n' \
+        'branches    показать все ветки репозитория\n' \
+        'diff        показать изменения в рабочем каталоге\n' \
+        'staged      показать изменения, подготовленные к коммиту \n' \
+        'diff_stat   показать краткую статистику изменений\n' \
+        'remotes     показать удалённые репозитории\n' \
+        'show        показать информацию о последнем коммите\n' \
+        'hash        показать хеш текущего коммита\n' \
+        'tags        показать Git-теги\n' \
+        'contributors показать авторов коммитов\n' \
+        'tracked     показать отслеживаемые файлы\n'
+        'search_commit  поиск коммитов по сообщению\n' \
+        'file_history   история изменений файла\n' \
+        'search_files   поиск файлов по имени\n')
 
 def run_command(args, cwd=None):
     result = subprocess.run(
@@ -407,145 +413,232 @@ def get_projects_directory():
 
     return path
 
+def create_project(name):
+    if name in {'.', '..'} or '/' in name or '\\' in name:
+        print('Invalid project name')
+        return
 
+    if not name.strip():
+        print('Project name cannot be empty')
+        return
+
+    path = get_projects_directory()
+    if path is None:
+        return
+
+    project_path = path / name
+
+    if project_path.exists():
+        print('Project already exists: ' + name)
+        return
+
+    try:
+        project_path.mkdir()
+        (project_path / 'src').mkdir()
+        (project_path / 'tests').mkdir()
+
+        gitignore = project_path / '.gitignore'
+        gitignore.write_text(
+            '__pycache__/\n*.py[cod]\n.venv/\nvenv/\n',
+            encoding='utf-8'
+        )
+
+        print('Project created: ' + name)
+        print('Path: ' + str(project_path.resolve()))
+
+    except OSError as error:
+        print('Could not create project: ' + str(error))
+
+def create_project_readme(name):
+    path = get_projects_directory()
+    if path is None:
+        return
+
+    project = path / name
+
+    if not project.is_dir() or project not in find_projects(path):
+        print('Git project not found: ' + name)
+        return
+
+    readme = project / 'README.md'
+
+    if readme.exists():
+        print('README.md already exists. It was not overwritten.')
+        return
+
+    content = f"""# {name}
+
+## Overview
+
+Describe your project here.
+
+## Installation
+
+Add installation instructions here.
+
+## Usage
+
+Add usage instructions here.
+
+## Tests
+
+Add testing instructions here.
+"""
+
+    try:
+        readme.write_text(content, encoding='utf-8')
+        print('README.md created for: ' + name)
+    except OSError as error:
+        print('Could not create README.md: ' + str(error))
+
+def check_project_structure(name):
+    path = get_projects_directory()
+    if path is None:
+        return
+
+    project = path / name
+
+    if not project.is_dir() or project not in find_projects(path):
+        print('Git project not found: ' + name)
+        return
+
+    required = {
+        'README.md': project / 'README.md',
+        '.gitignore': project / '.gitignore',
+        'src/': project / 'src',
+        'tests/': project / 'tests'
+    }
+
+    print('Project structure: ' + name)
+
+    missing = []
+
+    for label, item in required.items():
+        if item.exists():
+            print('[OK] ' + label)
+        else:
+            print('[MISSING] ' + label)
+            missing.append(label)
+
+    if missing:
+        print('Project structure is incomplete.')
+    else:
+        print('Project structure is complete!')
 
 if len(sys.argv) < 2:
     show_help()
-    exit()
+    sys.exit()
+command = sys.argv[1]
 
-if sys.argv[1] == 'help':
+if command == 'help':
     show_help()
-    exit()
 
-if sys.argv[1] == 'status':
-    if len(sys.argv) == 2:
+elif command == 'status':
+    if len(sys.argv) != 2:
+        print('Usage: python catops.py status')
+    else:
         py_code, py_output, py_error = run_command(['python', '--version'])
         git_code, git_output, git_error = run_command(['git', '--version'])
 
-        print('Проверка состояния системы...')
-        if py_code == 0: 
-            print('Python: ' + py_output.strip())
-        else: 
-            print('Python: ERROR - ' + py_error.strip())
-        
-        if git_code == 0: 
-            print('Git: ' + git_output.strip())
-        else: 
-            print('Git: ERROR - ' + git_error.strip())
-    else:
-        print('Неизвестная подкоманда: ' + sys.argv[2])
-        show_help()
-        exit()
+        print('System status:')
+        print('Python: ' + (py_output.strip() if py_code == 0 else py_error.strip()))
+        print('Git: ' + (git_output.strip() if git_code == 0 else git_error.strip()))
 
-elif sys.argv[1] == 'git':
-    if len(sys.argv) >= 3:
-        if sys.argv[2] == 'help':
+elif command == 'git':
+    if len(sys.argv) == 2:
+        show_git_branch()
+        show_git_status()
+        show_git_url()
+        show_last_commit_message()
+
+    else:
+        subcommand = sys.argv[2]
+        if subcommand == 'help':
             show_git_help()
-            exit()
-        if sys.argv[2] == 'branch':
+        elif subcommand == 'branch':
             show_git_branch()
-        elif sys.argv[2] == 'status':
+        elif subcommand == 'status':
             show_git_status()
-        elif sys.argv[2] == 'url':
+        elif subcommand == 'url':
             show_git_url()
-        elif sys.argv[2] == 'last_commit':
+        elif subcommand == 'last_commit':
             show_last_commit_message()
-        elif sys.argv[2] == 'log':
+        elif subcommand == 'log':
             show_git_log()
-        elif sys.argv[2] == 'branches':
+        elif subcommand == 'branches':
             show_git_branches()
-        elif sys.argv[2] == 'diff':
-            show_git_diff()      
-        elif sys.argv[2] == 'staged':
+        elif subcommand == 'diff':
+            show_git_diff()
+        elif subcommand == 'staged':
             show_git_staged()
-        elif sys.argv[2] == 'diff_stat':
+        elif subcommand == 'diff_stat':
             show_git_diff_stat()
-        elif sys.argv[2] == 'remotes':
+        elif subcommand == 'remotes':
             show_git_remotes()
-        elif sys.argv[2] == 'show':
+        elif subcommand == 'show':
             show_git_show()
-        elif sys.argv[2] == 'hash':
+        elif subcommand == 'hash':
             show_git_hash()
-        elif sys.argv[2] == 'tags':
+        elif subcommand == 'tags':
             show_git_tags()
-        elif sys.argv[2] == 'contributors':
+        elif subcommand == 'contributors':
             show_git_contributors()
-        elif sys.argv[2] == 'tracked':
+        elif subcommand == 'tracked':
             show_git_tracked()
-        
+        elif subcommand == 'search_commit' and len(sys.argv) >= 4:
+            search_git_commits(' '.join(sys.argv[3:]))
+        elif subcommand == 'file_history' and len(sys.argv) >= 4:
+            show_file_history(' '.join(sys.argv[3:]))
+        elif subcommand == 'search_files' and len(sys.argv) >= 4:
+            search_project_files(' '.join(sys.argv[3:]))
         else:
-            show_git_branch()
-            show_git_status()
-            show_git_url()
-            show_last_commit_message()
-    elif sys.argv[2] == 'search_commit' and len(sys.argv) >= 4:
-        search_git_commits(' '.join(sys.argv[3:]))
-    elif sys.argv[2] == 'file_history' and len(sys.argv) >= 4:
-        show_file_history(' '.join(sys.argv[3:]))
-    elif sys.argv[2] == 'search_files' and len(sys.argv) >= 4:
-        search_project_files(' '.join(sys.argv[3:]))
+            print('Unknown Git command: ' + subcommand)
+            show_git_help()
+
+elif command == 'projects':
+    if len(sys.argv) == 2:
+        path = get_projects_directory()
+        if path is not None:
+            for project in find_projects(path):
+                print(project.name)
+
     else:
-        print('Неизвестная команда: ' + sys.argv[2])
-        show_git_help()
-        exit()
+        subcommand = sys.argv[2]
 
-elif sys.argv[1] == 'projects':
-    if len(sys.argv) >= 3:
-        command = sys.argv[2]
-
-        if command == 'count' and len(sys.argv) == 3:
+        if subcommand == 'status' and len(sys.argv) == 3:
+            show_all_projects_status()
+        elif subcommand == 'count' and len(sys.argv) == 3:
             show_projects_count()
-
-        elif command == 'search' and len(sys.argv) >= 4:
+        elif subcommand == 'search' and len(sys.argv) >= 4:
             search_projects(' '.join(sys.argv[3:]))
-
-        elif command == 'info' and len(sys.argv) == 4:
+        elif subcommand == 'info' and len(sys.argv) == 4:
             show_project_info(sys.argv[3])
-
-        elif command == 'paths' and len(sys.argv) == 3:
+        elif subcommand == 'paths' and len(sys.argv) == 3:
             show_projects_paths()
-
+        elif subcommand == 'create' and len(sys.argv) == 4:
+            create_project(sys.argv[3])
+        elif subcommand == 'readme' and len(sys.argv) == 4:
+            create_project_readme(sys.argv[3])
+        elif subcommand == 'check' and len(sys.argv) == 4:
+            check_project_structure(sys.argv[3])
         else:
-            print('Unknown projects command: ' + command)
+            print('Unknown projects command: ' + subcommand)
             show_help()
 
-        exit()
-    if len(sys.argv) == 3 and sys.argv[2] == 'status':
-        show_all_projects_status()
-        exit()
-    try:
-        config = load_config()
-    except FileNotFoundError:
-        print('🐈 Глупый человек, файл конфигурации не найден')
-        exit()
-    except json.JSONDecodeError:
-        print('🐈 Глупый человек, сделай нормальный файл конфигурации')
-        exit()
-    try:
-        folder = config['projects_folder']
-        if not folder or folder.strip() == '':
-            print('🐈 Глупый человек, папка проектов не указана в конфигурации')
-            exit()
-        else:
-            path = Path(folder)
-    except KeyError:
-        print('🐈 Глупый человек, папка проектов не указана в конфигурации')
-        exit()
-    if not path.is_dir():
-        print('🐈 Глупый человек, папка проектов не существует: ' + str(path))
-        exit()
-    projects = find_projects(path)
-    for project in projects:
-        print(project.name)
-
-elif sys.argv[1] == 'run':
-    code, output, error = run_command(sys.argv[2:])
-    if code == 0:
-        print('Команда выполнена успешно:\n' + output)
+elif command == 'run':
+    if len(sys.argv) < 3:
+        print('Usage: python catops.py run <command>')
     else:
-        print('Ошибка при выполнении команды:\n' + error)
+        code, output, error = run_command(sys.argv[2:])
+        if code == 0:
+            print('Command completed successfully:\n' + output)
+        else:
+            print('Command failed:\n' + error)
 
 else:
+    print('Unknown command: ' + command)
+    show_help()
+
     print('Неизвестная команда: ' + sys.argv[1])
     show_help()
     exit()
