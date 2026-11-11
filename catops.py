@@ -2,6 +2,8 @@ import sys
 import subprocess
 from pathlib import Path
 import json
+import zipfile
+from datetime import datetime
 
 def show_help():
         print('Использование: python catops.py <команда>\n' \
@@ -15,7 +17,9 @@ def show_help():
         'projects status  состояние всех Git-проектов' \
         'projects create   создать новый проект\n' \
         'projects readme   создать README.md\n' \
-        'projects check    проверить структуру проекта\n')
+        'projects check    проверить структуру проекта\n' \
+        'projects backup   создать резервную копию проекта\n' \
+        'projects restore  восстановить проект из ZIP\n')
 
 def show_git_help():
     print('Использование: python catops.py git <подкоманда>\n' \
@@ -525,6 +529,122 @@ def check_project_structure(name):
     else:
         print('Project structure is complete!')
 
+def backup_project(name):
+    projects_path = get_projects_directory()
+    if projects_path is None:
+        return
+
+    projects = find_projects(projects_path)
+    project = next(
+        (p for p in projects if p.name.lower() == name.lower()),
+        None
+    )
+
+    if project is None:
+        print('Project not found: ' + name)
+        return
+
+    backups_path = projects_path / '_backups'
+    backups_path.mkdir(exist_ok=True)
+
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    archive_path = backups_path / f'{project.name}_{timestamp}.zip'
+
+    ignored = {'.venv', 'venv', '__pycache__', 'node_modules'}
+
+    try:
+        with zipfile.ZipFile(
+            archive_path, 'w', zipfile.ZIP_DEFLATED
+        ) as archive:
+            for file in project.rglob('*'):
+                if not file.is_file():
+                    continue
+
+                if any(part in ignored for part in file.parts):
+                    continue
+
+                relative_path = file.relative_to(project)
+                archive_name = f'{project.name}/{relative_path.as_posix()}'
+                archive.write(file, archive_name)
+
+        print('Backup created: ' + str(archive_path))
+
+    except OSError as error:
+        print('Backup ERROR: ' + str(error))
+
+def restore_project(archive_name):
+    projects_path = get_projects_directory()
+    if projects_path is None:
+        return
+
+    if Path(archive_name).name != archive_name:
+        print('Use only the backup filename')
+        return
+
+    if not archive_name.lower().endswith('.zip'):
+        print('Backup must be a ZIP file')
+        return
+
+    archive_path = projects_path / '_backups' / archive_name
+
+    if not archive_path.is_file():
+        print('Backup not found: ' + archive_name)
+        return
+
+    try:
+        with zipfile.ZipFile(archive_path, 'r') as archive:
+            members = archive.infolist()
+
+            if not members:
+                print('Backup is empty')
+                return
+
+            root_name = None
+
+            for member in members:
+                parts = Path(member.filename.replace('\\', '/')).parts
+
+                if (
+                    not parts
+                    or '..' in parts
+                    or ':' in parts[0]
+                    or Path(member.filename).is_absolute()
+                ):
+                    print('Invalid path in backup')
+                    return
+
+                if root_name is None:
+                    root_name = parts[0]
+                elif parts[0] != root_name:
+                    print('Backup contains multiple projects')
+                    return
+
+            if not root_name:
+                print('Invalid backup structure')
+                return
+
+            target = projects_path / root_name
+
+            if target.exists():
+                print('Project already exists: ' + root_name)
+                return
+
+            # Проверяем пути внутри архива перед распаковкой.
+            for member in members:
+                destination = (projects_path / member.filename).resolve()
+                if not destination.is_relative_to(target.resolve()):
+                    print('Unsafe path in backup')
+                    return
+
+            archive.extractall(projects_path)
+
+            print('Project restored: ' + str(target))
+
+    except zipfile.BadZipFile:
+        print('Invalid ZIP backup')
+    except OSError as error:
+        print('Restore ERROR: ' + str(error))
+
 if len(sys.argv) < 2:
     show_help()
     sys.exit()
@@ -621,6 +741,10 @@ elif command == 'projects':
             create_project_readme(sys.argv[3])
         elif subcommand == 'check' and len(sys.argv) == 4:
             check_project_structure(sys.argv[3])
+        elif command == 'backup' and len(sys.argv) == 4:
+            backup_project(sys.argv[3])
+        elif command == 'restore' and len(sys.argv) == 4:
+            restore_project(sys.argv[3])
         else:
             print('Unknown projects command: ' + subcommand)
             show_help()
